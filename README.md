@@ -4,7 +4,7 @@ Find the best GTM APIs. We benchmark all the GTM APIs and we put the results on 
 
 Our website: https://datacircle.dev
 
-This package gives four tools as a toolkit for [Effect](https://github.com/Effect-TS/effect)'s `effect/ai`: for `LanguageModel.generateText`, a `Chat` and an `McpServer`. The tools call Datacircle's open API, https://api.datacircle.dev/v1. You need no key and no account.
+This package gives four tools for [Effect](https://github.com/Effect-TS/effect)'s `effect/ai`. You can use them with `LanguageModel.generateText`, a `Chat` or an `McpServer`. The tools call Datacircle's open API, https://api.datacircle.dev/v1. You need no key and no account.
 
 | Tool | What the tool gives | Call |
 | --- | --- | --- |
@@ -19,11 +19,11 @@ This package gives four tools as a toolkit for [Effect](https://github.com/Effec
 npm install @datacircle/effect
 ```
 
-The package works on effect 4.0.0 and later. It uses your app's `effect` and needs no other package.
+The package needs effect 4.0.0 or later in your app. You need no other package.
 
 ## Give the tools to a model
 
-`DatacircleToolkit` holds the four tools. `DatacircleLayer` runs them. This example uses `@effect/ai-openai`, and any provider of `effect/ai` works the same way:
+`DatacircleToolkit` holds the four tools. `DatacircleLayer` runs them. This example uses `@effect/ai-openai`. Any provider of `effect/ai` works the same way:
 
 ```ts
 import { OpenAiClient, OpenAiLanguageModel } from "@effect/ai-openai";
@@ -53,11 +53,11 @@ program.pipe(
 );
 ```
 
-`generateText` runs the tools the model calls and gives you their results. To let the model read the results and answer, use a `Chat`, as shown next.
+`generateText` runs the model's tool calls and gives you the results. Use a `Chat` to let the model read the results and answer.
 
-## Add the tools beside your own, in a Chat
+## Add our tools beside your own, in a Chat
 
-`Toolkit.merge` puts our tools in your toolkit. Then give both layers. A `Chat` keeps the history, so the model can call tools until it answers:
+`Toolkit.merge` puts our tools in your toolkit. Then pass your layer and `DatacircleLayer` to `Effect.provide`. A `Chat` keeps the history. The model can call tools for several turns, then answer:
 
 ```ts
 import { OpenAiClient, OpenAiLanguageModel } from "@effect/ai-openai";
@@ -99,7 +99,7 @@ program.pipe(
 
 ## Serve the tools from an MCP server
 
-`McpServer.toolkit` serves the four tools to any MCP client, with your own tools if you add them. This server runs over stdio:
+`McpServer.toolkit` serves the four Datacircle tools to any MCP client. You can serve your own tools beside the Datacircle tools. This server runs over stdio:
 
 ```ts
 import { Layer } from "effect";
@@ -118,11 +118,11 @@ const Server = McpServer.layerStdio({
 Tools.pipe(Layer.provide(Server), Layer.provide(NodeStdio.layer), Layer.launch, NodeRuntime.runMain);
 ```
 
-For HTTP, use `McpServer.layerHttp({ ..., path: "/mcp" })` with `HttpRouter.serve`. Each tool is marked read-only. When a call fails, the client gets an error result (`isError`).
+For HTTP, use `McpServer.layerHttp({ ..., path: "/mcp" })` with `HttpRouter.serve`. We mark each tool read-only. A failed call gives the client an error result (`isError`).
 
 ## Set your own fetch and base URL
 
-`layer(options)` runs the tools with your own `fetch` and `baseURL`. Pass your own `fetch` to call through a proxy or in tests. Give the layer in place of `DatacircleLayer`:
+`layer(options)` runs the tools with your own `fetch` and `baseURL`. Pass your own `fetch` to call through a proxy or in tests. Provide this layer to your program in place of `DatacircleLayer`:
 
 ```ts
 import { layer } from "@datacircle/effect";
@@ -142,17 +142,17 @@ const answer = await Effect.runPromise(bestPlans({ slug: "email-finder", limit: 
 console.log(answer.plans);
 ```
 
-The other calls are `listApis()`, `searchPlans()` and `providerRanks()`. When the API refuses a call, the Effect fails with a `DatacircleError`.
+The other calls are `listApis()`, `searchPlans()` and `providerRanks()`. The Effect fails with a `DatacircleError` when the API refuses a call.
 
 ## What the model reads
 
 Each tool gives the model a JSON object. Each plan comes with a rank, provider, plan, score, price per 1,000 (`perThousand`, in dollars) and a page on datacircle.dev. The page on datacircle.dev lists every field.
 
-For an unknown slug, the tool returns a `DatacircleError` to the model, with the API's message and the tool to call instead. If the network fails, the model gets a `DatacircleError` with the network error's message. The model can then call again and keep working, and your program goes on. If an argument does not fit the tool's schema, `effect/ai` gives the model an error that names the argument. If you interrupt a tool call, its request stops. Each call runs in a span named `datacircle.<tool>`, such as `datacircle.best_plans`.
+For an unknown slug, the model gets a `DatacircleError` with the API's message and the tool to call instead. If the network fails, the model gets a `DatacircleError` with the network error's message. The model can call again. Your program keeps running. If an argument does not fit the tool's schema, `effect/ai` gives the model an error that names the argument. Interrupt a tool call to stop the request. Each call runs in a span named `datacircle.<tool>`, such as `datacircle.best_plans`.
 
 ## Network
 
-Each tool call sends one GET request to https://api.datacircle.dev/v1. It sends a second or third one only to try again with a corrected name, such as `serp` for `serp-api`. Each request holds only the tool's own arguments: no key and nothing from your chats. The API takes up to 60 calls a minute from one IP address. After a 429 answer (too many calls), the tool waits up to a minute and tries once more. The package stores nothing.
+Each tool call sends one GET request to https://api.datacircle.dev/v1. The tool sends a second or third request only to try again with a corrected name, such as `serp` for `serp-api`. Each request holds only the tool's own arguments: no key and nothing from your chats. The API takes up to 60 calls a minute from one IP address. After a 429 answer (too many calls), the tool waits up to a minute and tries once more. The package stores nothing.
 
 ## Links
 
